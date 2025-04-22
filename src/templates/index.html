@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carbon Footprint Calculator</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <!-- Geocoder CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"/>
+    <!-- Routing Machine CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css"/>
+    <!-- Additional map controls -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-easybutton@2/src/easy-button.css"/>
+    <style>
+        .result-card {
+            display: none;
+            margin-top: 20px;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        .card {
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        }
+        .btn-primary {
+            background-color: #28a745;
+            border-color: #28a745;
+        }
+        .btn-primary:hover {
+            background-color: #218838;
+            border-color: #1e7e34;
+        }
+        #map-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        #map {
+            height: 400px;
+            width: 100%;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        .map-buttons {
+            margin-bottom: 15px;
+        }
+        .map-buttons .btn {
+            margin-right: 10px;
+        }
+        .coordinate-marker {
+            text-align: center;
+            font-weight: bold;
+        }
+        .coordinate-marker.origin {
+            color: #28a745;
+        }
+        .coordinate-marker.destination {
+            color: #dc3545;
+        }
+        .route-info {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            margin-bottom: 10px;
+        }
+        .map-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .leaflet-routing-container {
+            background: white;
+            padding: 10px;
+            margin: 10px;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .search-container {
+            position: absolute;
+            top: 10px;
+            left: 50px;
+            z-index: 1000;
+            width: 300px;
+        }
+        .search-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .search-results {
+            background: white;
+            border-radius: 4px;
+            margin-top: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            display: none;
+        }
+        .search-result-item {
+            padding: 8px;
+            cursor: pointer;
+        }
+        .search-result-item:hover {
+            background: #f0f0f0;
+        }
+        #distance-info {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container py-5">
+        <h1 class="text-center mb-4">Carbon Footprint Calculator</h1>
+        
+        <div class="row justify-content-center">
+            <div class="col-md-10">
+                <div class="card">
+                    <div class="card-body">
+                        <form id="calculatorForm">
+                            <div id="map-container">
+                                <div class="map-buttons">
+                                    <button type="button" class="btn btn-success" id="setOrigin">Set Origin</button>
+                                    <button type="button" class="btn btn-danger" id="setDestination">Set Destination</button>
+                                    <button type="button" class="btn btn-secondary" id="resetMap">Reset Map</button>
+                                </div>
+                                <div id="map"></div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label for="origin" class="form-label">Origin (lat,lon)</label>
+                                        <input type="text" class="form-control" id="origin" required
+                                               placeholder="e.g., 51.5074,-0.1278"
+                                               pattern="^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$"
+                                               title="Please enter coordinates in format: latitude,longitude">
+                                        <small class="form-text text-muted">Click 'Set Origin' and then click on the map</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label for="destination" class="form-label">Destination (lat,lon)</label>
+                                        <input type="text" class="form-control" id="destination" required
+                                               placeholder="e.g., 48.8566,2.3522"
+                                               pattern="^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$"
+                                               title="Please enter coordinates in format: latitude,longitude">
+                                        <small class="form-text text-muted">Click 'Set Destination' and then click on the map</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label for="weight" class="form-label">Weight (kg)</label>
+                                        <input type="number" class="form-control" id="weight" required
+                                               placeholder="Enter shipment weight" min="0" step="0.1">
+                                        <small class="form-text text-muted">Enter the weight in kilograms</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label for="material" class="form-label">Packaging Material</label>
+                                        <select class="form-select" id="material" required>
+                                            <optgroup label="Paper and Board">
+                                                <option value="Paper and board: board">Board</option>
+                                                <option value="Paper and board: mixed">Mixed Paper</option>
+                                                <option value="Paper and board: paper">Paper</option>
+                                            </optgroup>
+                                            <optgroup label="Plastics">
+                                                <option value="Plastics: average plastics">Average Plastics</option>
+                                                <option value="Plastics: average plastic film">Plastic Film</option>
+                                                <option value="Plastics: average plastic rigid">Rigid Plastic</option>
+                                                <option value="Plastics: HDPE (incl. forming)">HDPE</option>
+                                                <option value="Plastics: LDPE and LLDPE (incl. forming)">LDPE/LLDPE</option>
+                                                <option value="Plastics: PET (incl. forming)">PET</option>
+                                                <option value="Plastics: PP (incl. forming)">PP</option>
+                                                <option value="Plastics: PS (incl. forming)">PS</option>
+                                                <option value="Plastics: PVC (incl. forming)">PVC</option>
+                                            </optgroup>
+                                            <optgroup label="Metal">
+                                                <option value="Metal: aluminium cans and foil (excl. forming)">Aluminum</option>
+                                                <option value="Metal: mixed cans">Mixed Cans</option>
+                                                <option value="Metal: steel cans">Steel Cans</option>
+                                                <option value="Metal: scrap metal">Scrap Metal</option>
+                                            </optgroup>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary w-100">Calculate Emissions</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="loading">
+                    <div class="spinner-border text-success" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+
+                <div class="card result-card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="card-title mb-0">Emission Results</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Recommended Vehicle:</strong> <span id="vehicle"></span></p>
+                                <p><strong>Packaging Material:</strong> <span id="material-result"></span></p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Total CO₂e:</strong> <span id="total-co2e"></span> kg</p>
+                            </div>
+                        </div>
+                        <hr>
+                        <h6 class="text-success">Emissions Breakdown</h6>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title">Transport</h6>
+                                        <p class="card-text"><span id="transport-emissions"></span> kg CO₂e</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title">Packaging</h6>
+                                        <p class="card-text"><span id="packaging-emissions"></span> kg CO₂e</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title">Waste</h6>
+                                        <p class="card-text"><span id="waste-emissions"></span> kg CO₂e</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet-easybutton@2/src/easy-button.js"></script>
+    <script>
+        // Initialize the map
+        const map = L.map('map').setView([51.505, -0.09], 4);
+
+        // Add multiple map layers
+        const layers = {
+            'OpenStreetMap': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }),
+            'Satellite': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles © Esri'
+            }),
+            'Terrain': L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenTopoMap contributors'
+            })
+        };
+
+        // Add default layer
+        layers.OpenStreetMap.addTo(map);
+
+        // Add layer control
+        L.control.layers(layers).addTo(map);
+
+        // Add scale control
+        L.control.scale().addTo(map);
+
+        let originMarker = null;
+        let destinationMarker = null;
+        let currentMode = null;
+        let routingControl = null;
+
+        // Custom marker icons
+        const originIcon = L.divIcon({
+            className: 'coordinate-marker origin',
+            html: '📍 Origin',
+            iconSize: [80, 20],
+            iconAnchor: [40, 20]
+        });
+
+        const destinationIcon = L.divIcon({
+            className: 'coordinate-marker destination',
+            html: '📍 Destination',
+            iconSize: [80, 20],
+            iconAnchor: [40, 20]
+        });
+
+        // Create distance info div
+        const distanceDiv = document.createElement('div');
+        distanceDiv.id = 'distance-info';
+        document.getElementById('map').appendChild(distanceDiv);
+
+        // Initialize geocoder
+        const geocoder = L.Control.Geocoder.nominatim();
+
+        // Create and add search control
+        const searchContainer = document.createElement('div');
+        searchContainer.className = 'search-container';
+        
+        const searchInput = document.createElement('input');
+        searchInput.className = 'search-input';
+        searchInput.type = 'text';
+        searchInput.placeholder = 'Search for a location...';
+        
+        const searchResults = document.createElement('div');
+        searchResults.className = 'search-results';
+        
+        searchContainer.appendChild(searchInput);
+        searchContainer.appendChild(searchResults);
+        document.getElementById('map').appendChild(searchContainer);
+
+        // Function to handle location selection
+        function handleLocationSelect(latlng, name) {
+            map.setView(latlng, 13);
+            searchInput.value = name;
+            searchResults.style.display = 'none';
+            
+            if (currentMode === 'origin') {
+                setOriginMarker(latlng);
+                currentMode = null;
+                map.getContainer().style.cursor = '';
+            } else if (currentMode === 'destination') {
+                setDestinationMarker(latlng);
+                currentMode = null;
+                map.getContainer().style.cursor = '';
+            }
+        }
+
+        // Search functionality with debounce
+        let searchTimeout;
+        searchInput.addEventListener('input', function(e) {
+            clearTimeout(searchTimeout);
+            const query = e.target.value;
+            
+            if (query.length < 3) {
+                searchResults.style.display = 'none';
+                return;
+            }
+
+            searchTimeout = setTimeout(() => {
+                geocoder.geocode(query, function(results) {
+                    searchResults.innerHTML = '';
+                    if (results.length > 0) {
+                        results.slice(0, 5).forEach(result => {
+                            const item = document.createElement('div');
+                            item.className = 'search-result-item';
+                            item.textContent = result.name;
+                            item.addEventListener('click', () => {
+                                handleLocationSelect(result.center, result.name);
+                            });
+                            searchResults.appendChild(item);
+                        });
+                        searchResults.style.display = 'block';
+                    } else {
+                        searchResults.style.display = 'none';
+                    }
+                });
+            }, 300);
+        });
+
+        // Function to set origin marker
+        function setOriginMarker(latlng) {
+            if (originMarker) {
+                map.removeLayer(originMarker);
+            }
+            originMarker = L.marker(latlng, {icon: originIcon}).addTo(map);
+            document.getElementById('origin').value = `${latlng.lat.toFixed(6)},${latlng.lng.toFixed(6)}`;
+            updateRoute();
+        }
+
+        // Function to set destination marker
+        function setDestinationMarker(latlng) {
+            if (destinationMarker) {
+                map.removeLayer(destinationMarker);
+            }
+            destinationMarker = L.marker(latlng, {icon: destinationIcon}).addTo(map);
+            document.getElementById('destination').value = `${latlng.lat.toFixed(6)},${latlng.lng.toFixed(6)}`;
+            updateRoute();
+        }
+
+        // Function to update route
+        function updateRoute() {
+            if (originMarker && destinationMarker) {
+                if (routingControl) {
+                    map.removeControl(routingControl);
+                }
+
+                routingControl = L.Routing.control({
+                    waypoints: [
+                        L.latLng(originMarker.getLatLng()),
+                        L.latLng(destinationMarker.getLatLng())
+                    ],
+                    routeWhileDragging: true,
+                    showAlternatives: true,
+                    altLineOptions: {
+                        styles: [
+                            {color: 'black', opacity: 0.15, weight: 9},
+                            {color: 'white', opacity: 0.8, weight: 6},
+                            {color: 'blue', opacity: 0.5, weight: 2}
+                        ]
+                    }
+                }).addTo(map);
+
+                routingControl.on('routesfound', function(e) {
+                    const routes = e.routes;
+                    const shortest = routes[0];
+                    const distance = (shortest.summary.totalDistance / 1000).toFixed(2);
+                    const duration = Math.round(shortest.summary.totalTime / 60);
+                    
+                    document.getElementById('distance-info').innerHTML = `
+                        📍 Distance: ${distance} km<br>
+                        ⏱️ Estimated time: ${duration} min
+                    `;
+                });
+            }
+        }
+
+        // Set up button handlers
+        document.getElementById('setOrigin').addEventListener('click', () => {
+            currentMode = 'origin';
+            map.getContainer().style.cursor = 'crosshair';
+            alert('Click on the map or search for a location to set the origin point');
+        });
+
+        document.getElementById('setDestination').addEventListener('click', () => {
+            currentMode = 'destination';
+            map.getContainer().style.cursor = 'crosshair';
+            alert('Click on the map or search for a location to set the destination point');
+        });
+
+        document.getElementById('resetMap').addEventListener('click', () => {
+            if (originMarker) {
+                map.removeLayer(originMarker);
+                originMarker = null;
+            }
+            if (destinationMarker) {
+                map.removeLayer(destinationMarker);
+                destinationMarker = null;
+            }
+            if (routingControl) {
+                map.removeControl(routingControl);
+                routingControl = null;
+            }
+            document.getElementById('origin').value = '';
+            document.getElementById('destination').value = '';
+            document.getElementById('distance-info').innerHTML = '';
+            currentMode = null;
+            map.getContainer().style.cursor = '';
+        });
+
+        // Map click handler
+        map.on('click', (e) => {
+            if (currentMode === 'origin') {
+                setOriginMarker(e.latlng);
+                currentMode = null;
+                map.getContainer().style.cursor = '';
+            } else if (currentMode === 'destination') {
+                setDestinationMarker(e.latlng);
+                currentMode = null;
+                map.getContainer().style.cursor = '';
+            }
+        });
+
+        // Add map control buttons
+        L.easyButton('🔄', function() {
+            map.locate({setView: true, maxZoom: 16});
+        }, 'Find my location').addTo(map);
+
+        L.easyButton('🏠', function() {
+            if (originMarker && destinationMarker) {
+                const bounds = L.latLngBounds([originMarker.getLatLng(), destinationMarker.getLatLng()]);
+                map.fitBounds(bounds, {padding: [50, 50]});
+            }
+        }, 'Show full route').addTo(map);
+
+        // Handle user location
+        map.on('locationfound', function(e) {
+            const latlng = e.latlng;
+            map.setView(latlng, 13);
+            if (currentMode === 'origin') {
+                setOriginMarker(latlng);
+                currentMode = null;
+                map.getContainer().style.cursor = '';
+            }
+        });
+
+        // Handle location errors
+        map.on('locationerror', function(e) {
+            alert("Could not find your location: " + e.message);
+        });
+
+        // Form submission handler
+        document.getElementById('calculatorForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            document.querySelector('.loading').style.display = 'block';
+            document.querySelector('.result-card').style.display = 'none';
+            
+            const data = {
+                origin: document.getElementById('origin').value,
+                destination: document.getElementById('destination').value,
+                weight: document.getElementById('weight').value,
+                material: document.getElementById('material').value
+            };
+            
+            try {
+                const response = await fetch('/calculate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('vehicle').textContent = result.vehicle;
+                    document.getElementById('material-result').textContent = result.material;
+                    document.getElementById('total-co2e').textContent = result.co2e;
+                    document.getElementById('transport-emissions').textContent = result.breakdown.transport;
+                    document.getElementById('packaging-emissions').textContent = result.breakdown.packaging;
+                    document.getElementById('waste-emissions').textContent = result.breakdown.waste;
+                    
+                    document.querySelector('.result-card').style.display = 'block';
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error calculating emissions. Please try again.');
+                console.error('Error:', error);
+            } finally {
+                document.querySelector('.loading').style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
