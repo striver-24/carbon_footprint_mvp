@@ -1,19 +1,94 @@
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 import pandas as pd
 from pathlib import Path
+from geopy.distance import geodesic
+
+@dataclass
+class TransportSegment:
+    mode: str
+    vehicle: str
+    distance: float
+    emissions: float
+
+@dataclass
+class BoxDimensions:
+    length: float  # in meters
+    width: float   # in meters
+    height: float  # in meters
+    volume: float  # in cubic meters
+
+@dataclass
+class LoadingCapacity:
+    total_boxes: int
+    rows: int
+    columns: int
+    layers: int
+    utilization_percentage: float
+    remaining_space: float
 
 @dataclass
 class EmissionResult:
-    vehicle: str
+    segments: List[TransportSegment]
     material: str
     co2e: float
     breakdown: Dict[str, float]
+    total_distance: float
+    total_time: float
+    box_info: BoxDimensions
+    loading_info: Dict[str, LoadingCapacity]  # vehicle type -> loading capacity
+
+@dataclass
+class RouteOption:
+    name: str
+    description: str
+    segments: List[Dict]
+    total_time: float
+    total_distance: float
+    estimated_emissions: float
+    cost_factor: float  # Relative cost (1.0 = standard)
 
 class EmissionCalculator:
     def __init__(self, data_dir: str = "data"):
         self.data_dir = Path(data_dir)
         self._load_data()
+        
+        # Standard container/vehicle dimensions in meters
+        self.vehicle_dimensions = {
+            'Van - Class I': {'length': 2.5, 'width': 1.7, 'height': 1.4},
+            'Van - Class II': {'length': 3.0, 'width': 1.8, 'height': 1.6},
+            'Van - Class III': {'length': 4.0, 'width': 2.0, 'height': 1.8},
+            'Truck - Small': {'length': 6.0, 'width': 2.4, 'height': 2.4},
+            'Truck - Medium': {'length': 8.0, 'width': 2.4, 'height': 2.6},
+            'Truck - Large': {'length': 13.6, 'width': 2.4, 'height': 2.7},
+            'Container - 20ft': {'length': 5.9, 'width': 2.35, 'height': 2.39},
+            'Container - 40ft': {'length': 12.0, 'width': 2.35, 'height': 2.39},
+            'Aircraft Container': {'length': 3.17, 'width': 2.23, 'height': 2.23}
+        }
+        
+        # Define mode characteristics
+        self.mode_characteristics = {
+            'road': {
+                'speed': 60,      # km/h
+                'cost_factor': 1.0,
+                'emission_factor': 1.0
+            },
+            'rail': {
+                'speed': 80,      # km/h
+                'cost_factor': 0.8,
+                'emission_factor': 0.4
+            },
+            'sea': {
+                'speed': 30,      # km/h
+                'cost_factor': 0.6,
+                'emission_factor': 0.2
+            },
+            'air': {
+                'speed': 800,     # km/h
+                'cost_factor': 2.5,
+                'emission_factor': 2.8
+            }
+        }
     
     def _load_data(self) -> None:
         """Load all database sheets from DB2.xlsx into memory."""
@@ -39,116 +114,189 @@ class EmissionCalculator:
         except FileNotFoundError as e:
             raise RuntimeError(f"Failed to load database files: {e}")
 
-    def calculate_emissions(
+    def calculate_box_loading(
         self,
-        origin: tuple[float, float],
-        destination: tuple[float, float],
+        box_dimensions: BoxDimensions,
+        vehicle_type: str
+    ) -> LoadingCapacity:
+        """Calculate how many boxes can fit in the vehicle."""
+        vehicle_dim = self.vehicle_dimensions[vehicle_type]
+        
+        # Calculate maximum number of boxes that can fit in each dimension
+        rows = int(vehicle_dim['width'] / box_dimensions.width)
+        columns = int(vehicle_dim['length'] / box_dimensions.length)
+        layers = int(vehicle_dim['height'] / box_dimensions.height)
+        
+        # Calculate total boxes
+        total_boxes = rows * columns * layers
+        
+        # Calculate space utilization
+        vehicle_volume = vehicle_dim['length'] * vehicle_dim['width'] * vehicle_dim['height']
+        total_box_volume = total_boxes * box_dimensions.volume
+        utilization = (total_box_volume / vehicle_volume) * 100
+        remaining_space = vehicle_volume - total_box_volume
+        
+        return LoadingCapacity(
+            total_boxes=total_boxes,
+            rows=rows,
+            columns=columns,
+            layers=layers,
+            utilization_percentage=utilization,
+            remaining_space=remaining_space
+        )
+
+    def calculate_multi_modal_emissions(
+        self,
+        route_segments: List[Dict],
         weight: float,
-        material: str = "Cardboard"
+        material: str = "Paper and board: board",
+        box_dimensions: Optional[Dict] = None
     ) -> EmissionResult:
         """
-        Calculate emissions for a shipment.
+        Calculate emissions for a multi-modal journey.
         
         Args:
-            origin: Tuple of (latitude, longitude)
-            destination: Tuple of (latitude, longitude)
+            route_segments: List of dictionaries containing:
+                {
+                    'origin': (lat, lon),
+                    'destination': (lat, lon),
+                    'mode': 'road'|'sea'|'air'|'rail'
+                }
             weight: Weight of shipment in kg
             material: Packaging material type
-            
-        Returns:
-            EmissionResult object with calculated emissions
+            box_dimensions: Optional dictionary containing box dimensions in cm
         """
-        # Calculate distance using geopy
-        from geopy.distance import geodesic
-        distance = geodesic(origin, destination).kilometers
+        total_emissions = 0
+        total_distance = 0
+        total_time = 0
+        segments = []
 
-        # Find best vehicle based on distance and weight
-        best_vehicle = self._select_best_vehicle(distance, weight)
+        # Calculate emissions for each segment
+        for segment in route_segments:
+            # Calculate segment distance
+            distance = geodesic(segment['origin'], segment['destination']).kilometers
+            total_distance += distance
+
+            # Select best vehicle for this segment based on mode and distance
+            vehicle = self._select_best_vehicle(
+                distance=distance,
+                weight=weight,
+                mode=segment['mode']
+            )
+
+            # Calculate segment emissions
+            segment_emissions = self._calculate_transport_emissions(
+                distance=distance,
+                weight=weight,
+                vehicle=vehicle,
+                mode=segment['mode']
+            )
+
+            # Calculate estimated time for segment
+            time = self._calculate_segment_time(distance, segment['mode'])
+            total_time += time
+
+            # Add segment to results
+            segments.append(TransportSegment(
+                mode=segment['mode'],
+                vehicle=vehicle,
+                distance=distance,
+                emissions=segment_emissions
+            ))
+
+            total_emissions += segment_emissions
+
+        # Calculate packaging and waste emissions
+        packaging_emissions = self._calculate_packaging_emissions(weight, material)
+        waste_emissions = self._calculate_waste_emissions(weight, material)
+
+        # Calculate box information if dimensions provided
+        box_info = None
+        loading_info = {}
         
-        # Calculate transport emissions
-        transport_emissions = self._calculate_transport_emissions(
-            distance, weight, best_vehicle
-        )
-        
-        # Calculate packaging emissions
-        packaging_emissions = self._calculate_packaging_emissions(
-            weight, material
-        )
-        
-        # Calculate waste emissions
-        waste_emissions = self._calculate_waste_emissions(
-            weight, material
-        )
-        
-        total_emissions = (
-            transport_emissions +
-            packaging_emissions +
-            waste_emissions
-        )
-        
+        if box_dimensions:
+            # Convert dimensions to meters if provided in cm
+            length_m = box_dimensions['length'] / 100
+            width_m = box_dimensions['width'] / 100
+            height_m = box_dimensions['height'] / 100
+            volume = length_m * width_m * height_m
+            
+            box_info = BoxDimensions(
+                length=length_m,
+                width=width_m,
+                height=height_m,
+                volume=volume
+            )
+            
+            # Calculate loading capacity for each vehicle type used
+            for segment in segments:
+                loading_info[segment.vehicle] = self.calculate_box_loading(
+                    box_info, segment.vehicle
+                )
+
         return EmissionResult(
-            vehicle=best_vehicle,
+            segments=segments,
             material=material,
-            co2e=total_emissions,
+            co2e=total_emissions + packaging_emissions + waste_emissions,
             breakdown={
-                "transport": transport_emissions,
+                "transport": total_emissions,
                 "packaging": packaging_emissions,
                 "waste": waste_emissions
-            }
+            },
+            total_distance=total_distance,
+            total_time=total_time,
+            box_info=box_info,
+            loading_info=loading_info
         )
 
-    def _select_best_vehicle(self, distance: float, weight: float) -> str:
-        """Select the most efficient vehicle based on distance and weight."""
-        # Filter for delivery vehicles
+    def _select_best_vehicle(
+        self,
+        distance: float,
+        weight: float,
+        mode: str
+    ) -> str:
+        """Select the most efficient vehicle based on mode, distance and weight."""
+        # Filter for vehicles of the specified mode
+        mode_mapping = {
+            'road': 'Road',
+            'sea': 'Water',
+            'air': 'Air',
+            'rail': 'Rail'
+        }
+
         transport_vehicles = self.delivery_modes[
-            self.delivery_modes['Level 1'].str.contains('Delivery', case=False, na=False)
+            self.delivery_modes['Level 1'].str.contains(mode_mapping[mode], case=False, na=False)
         ]
-        
-        # Filter out WTT (Well-to-Tank) entries
-        transport_vehicles = transport_vehicles[
-            ~transport_vehicles['Level 2'].str.contains('WTT', na=False)
-        ]
-        
+
         if transport_vehicles.empty:
-            raise ValueError("No delivery vehicles found in database")
-        
+            raise ValueError(f"No vehicles found for mode: {mode}")
+
         # Convert weight to tonnes for comparison
-        weight_tonnes = weight / 1000  # Convert kg to tonnes
-        
+        weight_tonnes = weight / 1000
+
         # Filter vehicles by weight capacity
         valid_vehicles = transport_vehicles.copy()
-        
-        # For vans, filter by weight class
-        van_mask = valid_vehicles['Level 2'] == 'Vans'
-        if weight_tonnes <= 1.305:
-            valid_vehicles = valid_vehicles[
-                ~van_mask | (van_mask & valid_vehicles['Level 3'].str.contains('Class I', na=False))
-            ]
-        elif weight_tonnes <= 1.74:
-            valid_vehicles = valid_vehicles[
-                ~van_mask | (van_mask & valid_vehicles['Level 3'].str.contains('Class II', na=False))
-            ]
-        elif weight_tonnes <= 3.5:
-            valid_vehicles = valid_vehicles[
-                ~van_mask | (van_mask & valid_vehicles['Level 3'].str.contains('Class III', na=False))
-            ]
-        
-        if valid_vehicles.empty:
-            raise ValueError(f"No suitable vehicle found for weight: {weight} kg")
-        
-        # Convert GHG values to numeric, handling any non-numeric or missing values
+
+        # Select vehicle with lowest emissions
         valid_vehicles['GHG_numeric'] = pd.to_numeric(
-            valid_vehicles['GHG Conversion Factor 2024'],  # Using the 2024 conversion factor instead of GHG/Unit
+            valid_vehicles['GHG Conversion Factor 2024'],
             errors='coerce'
         ).fillna(float('inf'))
-        
-        # Select vehicle with lowest emissions
+
         best_vehicle = valid_vehicles.loc[valid_vehicles['GHG_numeric'].idxmin()]
         
-        # Use Level 3 for vans (specific class), Level 2 for others
-        if best_vehicle['Level 2'] == 'Vans':
-            return best_vehicle['Level 3']
         return best_vehicle['Level 2']
+
+    def _calculate_segment_time(self, distance: float, mode: str) -> float:
+        """Calculate estimated time for segment in hours."""
+        # Average speeds in km/h
+        speeds = {
+            'road': 60,  # Truck average speed
+            'rail': 80,  # Train average speed
+            'sea': 30,   # Ship average speed
+            'air': 800   # Plane average speed
+        }
+        return distance / speeds[mode]
 
     def _calculate_transport_emissions(
         self,
@@ -317,3 +465,194 @@ class EmissionCalculator:
             packaging_weight = packaging_weight / 1000
         
         return packaging_weight * ghg_factor
+
+    def generate_route_options(
+        self,
+        origin: Tuple[float, float],
+        destination: Tuple[float, float],
+        weight: float
+    ) -> Dict[str, RouteOption]:
+        """Generate three route options: Eco, Standard, and Express."""
+        distance = geodesic(origin, destination).kilometers
+        
+        # Generate different routing options based on distance
+        options = {
+            'eco': self._generate_eco_route(origin, destination, distance),
+            'standard': self._generate_standard_route(origin, destination, distance),
+            'express': self._generate_express_route(origin, destination, distance)
+        }
+        
+        return options
+
+    def _generate_eco_route(self, origin, destination, distance):
+        """Generate the most eco-friendly route."""
+        segments = []
+        
+        if distance < 800:
+            # Short distance: Prefer rail or road
+            segments.append({
+                'mode': 'rail',
+                'origin': origin,
+                'destination': destination,
+                'description': 'Direct rail transport'
+            })
+        else:
+            # Long distance: Combine sea and rail/road
+            midpoint = self._calculate_midpoint(origin, destination)
+            segments.extend([
+                {
+                    'mode': 'road',
+                    'origin': origin,
+                    'destination': self._find_nearest_port(origin),
+                    'description': 'Road transport to port'
+                },
+                {
+                    'mode': 'sea',
+                    'origin': self._find_nearest_port(origin),
+                    'destination': self._find_nearest_port(destination),
+                    'description': 'Sea freight'
+                },
+                {
+                    'mode': 'road',
+                    'origin': self._find_nearest_port(destination),
+                    'destination': destination,
+                    'description': 'Road transport from port'
+                }
+            ])
+        
+        return RouteOption(
+            name="Eco-Friendly Route",
+            description="Optimized for lowest emissions using rail and sea transport",
+            segments=segments,
+            total_time=self._calculate_route_time(segments),
+            total_distance=self._calculate_route_distance(segments),
+            estimated_emissions=self._estimate_route_emissions(segments),
+            cost_factor=0.8
+        )
+
+    def _generate_standard_route(self, origin, destination, distance):
+        """Generate a balanced route."""
+        segments = []
+        
+        if distance < 500:
+            # Short distance: Direct road transport
+            segments.append({
+                'mode': 'road',
+                'origin': origin,
+                'destination': destination,
+                'description': 'Direct road transport'
+            })
+        else:
+            # Long distance: Combine rail and road
+            midpoint = self._calculate_midpoint(origin, destination)
+            segments.extend([
+                {
+                    'mode': 'road',
+                    'origin': origin,
+                    'destination': midpoint,
+                    'description': 'Road transport first leg'
+                },
+                {
+                    'mode': 'rail',
+                    'origin': midpoint,
+                    'destination': destination,
+                    'description': 'Rail transport second leg'
+                }
+            ])
+        
+        return RouteOption(
+            name="Standard Route",
+            description="Balanced option using road and rail transport",
+            segments=segments,
+            total_time=self._calculate_route_time(segments),
+            total_distance=self._calculate_route_distance(segments),
+            estimated_emissions=self._estimate_route_emissions(segments),
+            cost_factor=1.0
+        )
+
+    def _generate_express_route(self, origin, destination, distance):
+        """Generate the fastest route."""
+        segments = []
+        
+        if distance < 300:
+            # Short distance: Direct road transport
+            segments.append({
+                'mode': 'road',
+                'origin': origin,
+                'destination': destination,
+                'description': 'Express road transport'
+            })
+        else:
+            # Long distance: Air transport
+            segments.extend([
+                {
+                    'mode': 'road',
+                    'origin': origin,
+                    'destination': self._find_nearest_airport(origin),
+                    'description': 'Road transport to airport'
+                },
+                {
+                    'mode': 'air',
+                    'origin': self._find_nearest_airport(origin),
+                    'destination': self._find_nearest_airport(destination),
+                    'description': 'Air freight'
+                },
+                {
+                    'mode': 'road',
+                    'origin': self._find_nearest_airport(destination),
+                    'destination': destination,
+                    'description': 'Road transport from airport'
+                }
+            ])
+        
+        return RouteOption(
+            name="Express Route",
+            description="Fastest option using air transport for long distances",
+            segments=segments,
+            total_time=self._calculate_route_time(segments),
+            total_distance=self._calculate_route_distance(segments),
+            estimated_emissions=self._estimate_route_emissions(segments),
+            cost_factor=2.5
+        )
+
+    # Helper methods
+    def _calculate_midpoint(self, point1, point2):
+        """Calculate the midpoint between two coordinates."""
+        return (
+            (point1[0] + point2[0]) / 2,
+            (point1[1] + point2[1]) / 2
+        )
+
+    def _calculate_route_time(self, segments):
+        """Calculate total route time in hours."""
+        total_time = 0
+        for segment in segments:
+            distance = geodesic(segment['origin'], segment['destination']).kilometers
+            speed = self.mode_characteristics[segment['mode']]['speed']
+            total_time += distance / speed
+        return total_time
+
+    def _calculate_route_distance(self, segments):
+        """Calculate total route distance in kilometers."""
+        total_distance = 0
+        for segment in segments:
+            distance = geodesic(segment['origin'], segment['destination']).kilometers
+            total_distance += distance
+        return total_distance
+
+    def _estimate_route_emissions(self, segments):
+        """Estimate route emissions (relative units)."""
+        total_emissions = 0
+        for segment in segments:
+            distance = geodesic(segment['origin'], segment['destination']).kilometers
+            emission_factor = self.mode_characteristics[segment['mode']]['emission_factor']
+            total_emissions += distance * emission_factor
+        return total_emissions
+
+    def _find_nearest_port(self, location):
+        # Implementation of _find_nearest_port method
+        pass
+
+    def _find_nearest_airport(self, location):
+        # Implementation of _find_nearest_airport method
+        pass

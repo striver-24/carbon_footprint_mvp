@@ -128,6 +128,214 @@
             z-index: 1000;
             font-weight: bold;
         }
+        /* Chat Widget Styles */
+        .chat-widget {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 350px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+        }
+        .chat-widget.minimized {
+            transform: translateY(calc(100% - 50px));
+        }
+        .chat-header {
+            background: #28a745;
+            color: white;
+            padding: 15px;
+            border-radius: 10px 10px 0 0;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .minimize-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 0 5px;
+        }
+        .chat-body {
+            height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+        .chat-messages {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .chat-message {
+            max-width: 80%;
+            padding: 10px 15px;
+            border-radius: 15px;
+            margin: 2px 0;
+        }
+        .user-message {
+            background: #007bff;
+            color: white;
+            align-self: flex-end;
+        }
+        .bot-message {
+            background: #f0f0f0;
+            align-self: flex-start;
+        }
+        .typing-indicator {
+            display: none;
+            padding: 10px 15px;
+            font-style: italic;
+            color: #666;
+        }
+        .chat-input-form {
+            display: flex;
+            padding: 15px;
+            gap: 10px;
+            border-top: 1px solid #eee;
+        }
+        .chat-input-form input {
+            flex-grow: 1;
+            padding: 8px 15px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            outline: none;
+        }
+        .chat-input-form button {
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .chat-input-form button:hover {
+            background: #218838;
+        }
+        @media (max-width: 768px) {
+            .chat-widget {
+                width: 100%;
+                bottom: 0;
+                right: 0;
+                border-radius: 10px 10px 0 0;
+            }
+        }
+        .city-suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .suggestion-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+        }
+        .suggestion-item:last-child {
+            border-bottom: none;
+        }
+        .suggestion-item:hover {
+            background-color: #f8f9fa;
+        }
+        .suggestion-item .city-name {
+            font-weight: bold;
+        }
+        .suggestion-item .country-name {
+            font-size: 0.9em;
+            color: #666;
+        }
+        .route-info {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+        }
+        .route-segment {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            background-color: #f8f9fa;
+        }
+        .segment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .remove-segment {
+            color: #dc3545;
+            cursor: pointer;
+        }
+        .transport-mode-select {
+            background-color: white;
+            border: 1px solid #ced4da;
+        }
+        .route-option {
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .route-option:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .route-option.selected {
+            border-color: #28a745;
+            background-color: #f8fff8;
+        }
+        .route-option .badge {
+            font-size: 0.8em;
+            padding: 5px 10px;
+        }
+        .route-segment {
+            padding: 10px;
+            border-left: 3px solid #28a745;
+            margin: 5px 0;
+            background-color: #f8f9fa;
+        }
+        .route-metrics {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #dee2e6;
+        }
+        .route-metric {
+            text-align: center;
+        }
+        .route-metric-value {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #28a745;
+        }
+        .route-metric-label {
+            font-size: 0.8em;
+            color: #6c757d;
+        }
     </style>
 </head>
 <body class="bg-light">
@@ -151,62 +359,101 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label for="origin" class="form-label">Origin (lat,lon)</label>
-                                        <input type="text" class="form-control" id="origin" required
-                                               placeholder="e.g., 51.5074,-0.1278"
-                                               pattern="^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$"
-                                               title="Please enter coordinates in format: latitude,longitude">
-                                        <small class="form-text text-muted">Click 'Set Origin' and then click on the map</small>
+                                        <label for="origin" class="form-label">Origin City</label>
+                                        <div class="position-relative">
+                                            <input type="text" 
+                                                   class="form-control" 
+                                                   id="originCity" 
+                                                   placeholder="Enter city name..."
+                                                   autocomplete="off">
+                                            <input type="hidden" id="origin" name="origin">
+                                            <div class="city-suggestions" id="originSuggestions"></div>
+                                        </div>
+                                        <small class="form-text text-muted">Start typing to see suggestions</small>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label for="destination" class="form-label">Destination (lat,lon)</label>
-                                        <input type="text" class="form-control" id="destination" required
-                                               placeholder="e.g., 48.8566,2.3522"
-                                               pattern="^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$"
-                                               title="Please enter coordinates in format: latitude,longitude">
-                                        <small class="form-text text-muted">Click 'Set Destination' and then click on the map</small>
+                                        <label for="destination" class="form-label">Destination City</label>
+                                        <div class="position-relative">
+                                            <input type="text" 
+                                                   class="form-control" 
+                                                   id="destinationCity" 
+                                                   placeholder="Enter city name..."
+                                                   autocomplete="off">
+                                            <input type="hidden" id="destination" name="destination">
+                                            <div class="city-suggestions" id="destinationSuggestions"></div>
+                                        </div>
+                                        <small class="form-text text-muted">Start typing to see suggestions</small>
                                     </div>
                                 </div>
                             </div>
                             
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label for="weight" class="form-label">Weight (kg)</label>
-                                        <input type="number" class="form-control" id="weight" required
-                                               placeholder="Enter shipment weight" min="0" step="0.1">
-                                        <small class="form-text text-muted">Enter the weight in kilograms</small>
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <h5 class="mb-0">Route Options</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row" id="routeOptions">
+                                        <!-- Route options will be inserted here -->
                                     </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label for="material" class="form-label">Packaging Material</label>
-                                        <select class="form-select" id="material" required>
-                                            <optgroup label="Paper and Board">
-                                                <option value="Paper and board: board">Board</option>
-                                                <option value="Paper and board: mixed">Mixed Paper</option>
-                                                <option value="Paper and board: paper">Paper</option>
-                                            </optgroup>
-                                            <optgroup label="Plastics">
-                                                <option value="Plastics: average plastics">Average Plastics</option>
-                                                <option value="Plastics: average plastic film">Plastic Film</option>
-                                                <option value="Plastics: average plastic rigid">Rigid Plastic</option>
-                                                <option value="Plastics: HDPE (incl. forming)">HDPE</option>
-                                                <option value="Plastics: LDPE and LLDPE (incl. forming)">LDPE/LLDPE</option>
-                                                <option value="Plastics: PET (incl. forming)">PET</option>
-                                                <option value="Plastics: PP (incl. forming)">PP</option>
-                                                <option value="Plastics: PS (incl. forming)">PS</option>
-                                                <option value="Plastics: PVC (incl. forming)">PVC</option>
-                                            </optgroup>
-                                            <optgroup label="Metal">
-                                                <option value="Metal: aluminium cans and foil (excl. forming)">Aluminum</option>
-                                                <option value="Metal: mixed cans">Mixed Cans</option>
-                                                <option value="Metal: steel cans">Steel Cans</option>
-                                                <option value="Metal: scrap metal">Scrap Metal</option>
-                                            </optgroup>
-                                        </select>
+                            </div>
+                            
+                            <div class="route-info card mb-3 d-none" id="routeInfo">
+                                <div class="card-body">
+                                    <h6 class="card-title">Route Information</h6>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p class="mb-1"><strong>Distance:</strong> <span id="routeDistance">-</span></p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p class="mb-1"><strong>Estimated Time:</strong> <span id="routeTime">-</span></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h5 class="mb-0">Box Dimensions</h5>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="enableBoxDimensions">
+                                            <label class="form-check-label" for="enableBoxDimensions">Enable box measurements</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-body" id="boxDimensionsForm" style="display: none;">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="form-group mb-3">
+                                                <label for="boxLength">Length (cm)</label>
+                                                <input type="number" class="form-control" id="boxLength" 
+                                                       placeholder="Enter length" min="1" step="0.1">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="form-group mb-3">
+                                                <label for="boxWidth">Width (cm)</label>
+                                                <input type="number" class="form-control" id="boxWidth" 
+                                                       placeholder="Enter width" min="1" step="0.1">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="form-group mb-3">
+                                                <label for="boxHeight">Height (cm)</label>
+                                                <input type="number" class="form-control" id="boxHeight" 
+                                                       placeholder="Enter height" min="1" step="0.1">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-12">
+                                            <div class="alert alert-info" id="volumeInfo">
+                                                Box Volume: - m³
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -264,9 +511,50 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="loading-capacity-info mt-3 d-none">
+                            <h6 class="text-success">Loading Capacity Analysis</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Vehicle</th>
+                                            <th>Total Boxes</th>
+                                            <th>Configuration</th>
+                                            <th>Space Usage</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="loadingCapacityTable">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Add this right after the closing div of the main container, before the script tags -->
+    <div class="chat-widget" id="chatWidget">
+        <div class="chat-header" id="chatHeader">
+            <span>Carbon Assistant 🌱</span>
+            <button class="minimize-btn" id="minimizeChat">−</button>
+        </div>
+        <div class="chat-body" id="chatBody">
+            <div class="chat-messages" id="chatBox">
+                <!-- Messages will appear here -->
+            </div>
+            <div class="typing-indicator" id="typingIndicator">
+                Assistant is typing...
+            </div>
+            <form id="chatForm" class="chat-input-form">
+                <input type="text" id="messageInput" placeholder="Type your message..." autocomplete="off">
+                <button type="submit">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                    </svg>
+                </button>
+            </form>
         </div>
     </div>
 
@@ -535,12 +823,20 @@
             document.querySelector('.loading').style.display = 'block';
             document.querySelector('.result-card').style.display = 'none';
             
+            const boxDimensionsEnabled = document.getElementById('enableBoxDimensions').checked;
             const data = {
-                origin: document.getElementById('origin').value,
-                destination: document.getElementById('destination').value,
+                segments: segments,
                 weight: document.getElementById('weight').value,
                 material: document.getElementById('material').value
             };
+            
+            if (boxDimensionsEnabled) {
+                data.box_dimensions = {
+                    length: parseFloat(document.getElementById('boxLength').value),
+                    width: parseFloat(document.getElementById('boxWidth').value),
+                    height: parseFloat(document.getElementById('boxHeight').value)
+                };
+            }
             
             try {
                 const response = await fetch('/calculate', {
@@ -554,12 +850,43 @@
                 const result = await response.json();
                 
                 if (result.success) {
-                    document.getElementById('vehicle').textContent = result.vehicle;
+                    document.getElementById('vehicle').textContent = 
+                        result.segments.map(s => s.vehicle).join(' → ');
                     document.getElementById('material-result').textContent = result.material;
                     document.getElementById('total-co2e').textContent = result.co2e;
-                    document.getElementById('transport-emissions').textContent = result.breakdown.transport;
-                    document.getElementById('packaging-emissions').textContent = result.breakdown.packaging;
-                    document.getElementById('waste-emissions').textContent = result.breakdown.waste;
+                    
+                    document.getElementById('transport-emissions').textContent = 
+                        result.breakdown.transport;
+                    document.getElementById('packaging-emissions').textContent = 
+                        result.breakdown.packaging;
+                    document.getElementById('waste-emissions').textContent = 
+                        result.breakdown.waste;
+                    
+                    // Update loading capacity information
+                    if (result.loading_info) {
+                        const loadingTable = document.getElementById('loadingCapacityTable');
+                        loadingTable.innerHTML = '';
+                        
+                        Object.entries(result.loading_info).forEach(([vehicle, info]) => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${vehicle}</td>
+                                <td>${info.total_boxes}</td>
+                                <td>${info.rows}×${info.columns}×${info.layers} (W×L×H)</td>
+                                <td>
+                                    ${info.utilization_percentage.toFixed(1)}%
+                                    <div class="progress" style="height: 5px;">
+                                        <div class="progress-bar bg-success" 
+                                             style="width: ${info.utilization_percentage}%">
+                                        </div>
+                                    </div>
+                                </td>
+                            `;
+                            loadingTable.appendChild(row);
+                        });
+                        
+                        document.querySelector('.loading-capacity-info').classList.remove('d-none');
+                    }
                     
                     document.querySelector('.result-card').style.display = 'block';
                 } else {
@@ -567,11 +894,587 @@
                 }
             } catch (error) {
                 alert('Error calculating emissions. Please try again.');
-                console.error('Error:', error);
             } finally {
                 document.querySelector('.loading').style.display = 'none';
             }
         });
+
+        // Chat Widget functionality
+        const chatWidget = document.getElementById('chatWidget');
+        const chatHeader = document.getElementById('chatHeader');
+        const chatBox = document.getElementById('chatBox');
+        const chatForm = document.getElementById('chatForm');
+        const messageInput = document.getElementById('messageInput');
+        const typingIndicator = document.getElementById('typingIndicator');
+        const minimizeChat = document.getElementById('minimizeChat');
+
+        // Toggle chat minimization
+        minimizeChat.addEventListener('click', (e) => {
+            e.stopPropagation();
+            chatWidget.classList.toggle('minimized');
+            minimizeChat.textContent = chatWidget.classList.contains('minimized') ? '+' : '−';
+        });
+
+        chatHeader.addEventListener('click', () => {
+            chatWidget.classList.toggle('minimized');
+            minimizeChat.textContent = chatWidget.classList.contains('minimized') ? '+' : '−';
+        });
+
+        // Add a message to the chat box
+        function addMessage(message, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message ${isUser ? 'user-message' : 'bot-message'}`;
+            messageDiv.textContent = message;
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        // Show typing indicator
+        function showTyping() {
+            typingIndicator.style.display = 'block';
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        // Hide typing indicator
+        function hideTyping() {
+            typingIndicator.style.display = 'none';
+        }
+
+        // Initialize chat
+        async function initializeChat() {
+            showTyping();
+            try {
+                const response = await fetch('/chat/message', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message: '' })
+                });
+                const data = await response.json();
+                addMessage(data.response);
+            } catch (error) {
+                addMessage('Sorry, I encountered an error. Please try again.');
+            }
+            hideTyping();
+        }
+
+        // Handle form submission
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            // Add user message
+            addMessage(message, true);
+            messageInput.value = '';
+
+            // Show typing indicator
+            showTyping();
+
+            try {
+                const response = await fetch('/chat/message', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message })
+                });
+                const data = await response.json();
+                addMessage(data.response);
+            } catch (error) {
+                addMessage('Sorry, I encountered an error. Please try again.');
+            }
+
+            hideTyping();
+        });
+
+        // Initialize chat when page loads
+        initializeChat();
+
+        // Handle chat suggestions
+        function handleSuggestion(suggestion) {
+            messageInput.value = suggestion;
+            chatForm.dispatchEvent(new Event('submit'));
+        }
+
+        // Add chat suggestions if needed
+        function addSuggestions() {
+            const suggestions = [
+                'Calculate emissions',
+                'Help me choose packaging',
+                'Show eco-friendly options'
+            ];
+            
+            const suggestionsDiv = document.createElement('div');
+            suggestionsDiv.className = 'chat-suggestions';
+            suggestions.forEach(suggestion => {
+                const button = document.createElement('button');
+                button.textContent = suggestion;
+                button.onclick = () => handleSuggestion(suggestion);
+                suggestionsDiv.appendChild(button);
+            });
+            chatBox.appendChild(suggestionsDiv);
+        }
+
+        let debounceTimer;
+
+        function debounce(func, wait) {
+            return function executedFunction(...args) {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+
+        async function searchCities(query) {
+            try {
+                const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
+                const data = await response.json();
+                return data.map(item => ({
+                    name: item.display_name,
+                    lat: item.lat,
+                    lon: item.lon
+                }));
+            } catch (error) {
+                console.error('Error searching cities:', error);
+                return [];
+            }
+        }
+
+        function createSuggestionsList(suggestions, inputId, hiddenInputId, suggestionsDivId) {
+            const suggestionsDiv = document.getElementById(suggestionsDivId);
+            suggestionsDiv.innerHTML = '';
+            
+            if (suggestions.length === 0) {
+                suggestionsDiv.style.display = 'none';
+                return;
+            }
+
+            suggestions.forEach(city => {
+                const div = document.createElement('div');
+                div.className = 'suggestion-item';
+                
+                // Split the display name into parts
+                const parts = city.name.split(', ');
+                const cityName = parts[0];
+                const countryName = parts[parts.length - 1];
+                
+                div.innerHTML = `
+                    <span class="city-name">${cityName}</span>
+                    <span class="country-name">${countryName}</span>
+                `;
+                
+                div.addEventListener('click', () => {
+                    document.getElementById(inputId).value = city.name;
+                    document.getElementById(hiddenInputId).value = `${city.lat},${city.lon}`;
+                    suggestionsDiv.style.display = 'none';
+                    updateRouteInfo();
+                });
+                
+                suggestionsDiv.appendChild(div);
+            });
+            
+            suggestionsDiv.style.display = 'block';
+        }
+
+        async function updateRouteInfo() {
+            const origin = document.getElementById('origin').value;
+            const destination = document.getElementById('destination').value;
+            
+            if (origin && destination) {
+                const [originLat, originLon] = origin.split(',');
+                const [destLat, destLon] = destination.split(',');
+                
+                // Calculate distance using Leaflet
+                const from = L.latLng(originLat, originLon);
+                const to = L.latLng(destLat, destLon);
+                const distanceKm = from.distanceTo(to) / 1000;
+                
+                // Estimate time (assuming average speed of 60 km/h)
+                const timeHours = distanceKm / 60;
+                
+                document.getElementById('routeInfo').classList.remove('d-none');
+                document.getElementById('routeDistance').textContent = `${distanceKm.toFixed(2)} km`;
+                document.getElementById('routeTime').textContent = `${Math.floor(timeHours)}h ${Math.round((timeHours % 1) * 60)}m`;
+            }
+        }
+
+        // Set up event listeners for origin city
+        document.getElementById('originCity').addEventListener('input', debounce(async (e) => {
+            const query = e.target.value;
+            if (query.length < 3) {
+                document.getElementById('originSuggestions').style.display = 'none';
+                return;
+            }
+            
+            const suggestions = await searchCities(query);
+            createSuggestionsList(suggestions, 'originCity', 'origin', 'originSuggestions');
+        }, 300));
+
+        // Set up event listeners for destination city
+        document.getElementById('destinationCity').addEventListener('input', debounce(async (e) => {
+            const query = e.target.value;
+            if (query.length < 3) {
+                document.getElementById('destinationSuggestions').style.display = 'none';
+                return;
+            }
+            
+            const suggestions = await searchCities(query);
+            createSuggestionsList(suggestions, 'destinationCity', 'destination', 'destinationSuggestions');
+        }, 300));
+
+        // Close suggestions when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.position-relative')) {
+                document.getElementById('originSuggestions').style.display = 'none';
+                document.getElementById('destinationSuggestions').style.display = 'none';
+            }
+        });
+
+        let segments = [];
+
+        function createSegment(index) {
+            const segment = document.createElement('div');
+            segment.className = 'route-segment';
+            segment.innerHTML = `
+                <div class="segment-header">
+                    <h6>Segment ${index + 1}</h6>
+                    <span class="remove-segment" onclick="removeSegment(${index})">×</span>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group mb-2">
+                            <label>Transport Mode</label>
+                            <select class="form-select transport-mode-select" onchange="updateSegment(${index}, 'mode', this.value)">
+                                <option value="road">Road (Truck/Van)</option>
+                                <option value="rail">Rail</option>
+                                <option value="sea">Sea</option>
+                                <option value="air">Air</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group mb-2">
+                            <label>Distance</label>
+                            <input type="text" class="form-control" readonly 
+                                   value="Calculating..." id="segment-distance-${index}">
+                        </div>
+                    </div>
+                </div>
+            `;
+            return segment;
+        }
+
+        function addSegment() {
+            const index = segments.length;
+            segments.push({
+                mode: 'road',
+                origin: null,
+                destination: null
+            });
+            
+            document.getElementById('routeSegments').appendChild(createSegment(index));
+            updateRouteVisualization();
+        }
+
+        function removeSegment(index) {
+            segments.splice(index, 1);
+            renderSegments();
+            updateRouteVisualization();
+        }
+
+        function updateSegment(index, field, value) {
+            segments[index][field] = value;
+            updateRouteVisualization();
+        }
+
+        function renderSegments() {
+            const container = document.getElementById('routeSegments');
+            container.innerHTML = '';
+            segments.forEach((_, index) => {
+                container.appendChild(createSegment(index));
+            });
+        }
+
+        function updateRouteVisualization() {
+            // Update route on map and recalculate distances
+            if (segments.length > 0) {
+                const origin = document.getElementById('origin').value;
+                const destination = document.getElementById('destination').value;
+                
+                if (origin && destination) {
+                    const [originLat, originLon] = origin.split(',');
+                    const [destLat, destLon] = destination.split(',');
+                    
+                    // Update segment coordinates
+                    segments.forEach((segment, index) => {
+                        if (index === 0) {
+                            segment.origin = [parseFloat(originLat), parseFloat(originLon)];
+                        }
+                        if (index === segments.length - 1) {
+                            segment.destination = [parseFloat(destLat), parseFloat(destLon)];
+                        }
+                    });
+                    
+                    // Update intermediate points
+                    if (segments.length > 1) {
+                        for (let i = 0; i < segments.length - 1; i++) {
+                            const nextSegment = segments[i + 1];
+                            const currentSegment = segments[i];
+                            
+                            // Calculate intermediate point
+                            const midLat = (currentSegment.origin[0] + parseFloat(destLat)) / 2;
+                            const midLon = (currentSegment.origin[1] + parseFloat(destLon)) / 2;
+                            
+                            currentSegment.destination = [midLat, midLon];
+                            nextSegment.origin = [midLat, midLon];
+                        }
+                    }
+                    
+                    // Update distances
+                    segments.forEach((segment, index) => {
+                        if (segment.origin && segment.destination) {
+                            const distance = calculateDistance(
+                                segment.origin[0], segment.origin[1],
+                                segment.destination[0], segment.destination[1]
+                            );
+                            document.getElementById(`segment-distance-${index}`).value = 
+                                `${distance.toFixed(2)} km`;
+                        }
+                    });
+                }
+            }
+        }
+
+        // Initialize with one segment
+        addSegment();
+
+        // Box dimensions handling
+        document.getElementById('enableBoxDimensions').addEventListener('change', function(e) {
+            const boxForm = document.getElementById('boxDimensionsForm');
+            boxForm.style.display = e.target.checked ? 'block' : 'none';
+        });
+
+        // Calculate volume on dimension change
+        ['boxLength', 'boxWidth', 'boxHeight'].forEach(id => {
+            document.getElementById(id).addEventListener('input', calculateVolume);
+        });
+
+        function calculateVolume() {
+            const length = parseFloat(document.getElementById('boxLength').value) || 0;
+            const width = parseFloat(document.getElementById('boxWidth').value) || 0;
+            const height = parseFloat(document.getElementById('boxHeight').value) || 0;
+            
+            const volumeCm3 = length * width * height;
+            const volumeM3 = volumeCm3 / 1000000; // convert to m³
+            
+            document.getElementById('volumeInfo').innerHTML = 
+                `Box Volume: ${volumeM3.toFixed(4)} m³`;
+        }
+
+        let selectedRoute = null;
+
+        function displayRouteOptions(options) {
+            const container = document.getElementById('routeOptions');
+            container.innerHTML = '';
+            
+            Object.entries(options).forEach(([key, route]) => {
+                const card = document.createElement('div');
+                card.className = 'col-md-4';
+                
+                const routeTypeLabels = {
+                    'eco': {
+                        badge: 'success',
+                        icon: '🌱',
+                        label: 'Eco-Friendly'
+                    },
+                    'standard': {
+                        badge: 'primary',
+                        icon: '🚛',
+                        label: 'Standard'
+                    },
+                    'express': {
+                        badge: 'danger',
+                        icon: '✈️',
+                        label: 'Express'
+                    }
+                };
+                
+                const typeInfo = routeTypeLabels[key];
+                
+                card.innerHTML = `
+                    <div class="route-option" data-route="${key}">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="mb-0">
+                                ${typeInfo.icon} ${route.name}
+                            </h6>
+                            <span class="badge bg-${typeInfo.badge}">${typeInfo.label}</span>
+                        </div>
+                        <p class="text-muted small mb-3">${route.description}</p>
+                        
+                        <div class="route-segments">
+                            ${route.segments.map(segment => `
+                                <div class="route-segment">
+                                    <small class="text-muted">${segment.mode.toUpperCase()}</small>
+                                    <div>${segment.description}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        
+                        <div class="route-metrics">
+                            <div class="route-metric">
+                                <div class="route-metric-value">${Math.round(route.total_time)}h</div>
+                                <div class="route-metric-label">Duration</div>
+                            </div>
+                            <div class="route-metric">
+                                <div class="route-metric-value">${Math.round(route.total_distance)}km</div>
+                                <div class="route-metric-label">Distance</div>
+                            </div>
+                            <div class="route-metric">
+                                <div class="route-metric-value">${route.cost_factor}x</div>
+                                <div class="route-metric-label">Cost Factor</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                container.appendChild(card);
+            });
+            
+            // Add click handlers
+            document.querySelectorAll('.route-option').forEach(option => {
+                option.addEventListener('click', function() {
+                    document.querySelectorAll('.route-option').forEach(opt => 
+                        opt.classList.remove('selected'));
+                    this.classList.add('selected');
+                    selectedRoute = this.dataset.route;
+                });
+            });
+        }
+
+        // Update the form submission
+        document.getElementById('calculatorForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (!selectedRoute) {
+                alert('Please select a route option');
+                return;
+            }
+            
+            document.querySelector('.loading').style.display = 'block';
+            document.querySelector('.result-card').style.display = 'none';
+            
+            const boxDimensionsEnabled = document.getElementById('enableBoxDimensions').checked;
+            const data = {
+                segments: segments,
+                weight: document.getElementById('weight').value,
+                material: document.getElementById('material').value
+            };
+            
+            if (boxDimensionsEnabled) {
+                data.box_dimensions = {
+                    length: parseFloat(document.getElementById('boxLength').value),
+                    width: parseFloat(document.getElementById('boxWidth').value),
+                    height: parseFloat(document.getElementById('boxHeight').value)
+                };
+            }
+            
+            try {
+                const response = await fetch('/calculate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('vehicle').textContent = 
+                        result.segments.map(s => s.vehicle).join(' → ');
+                    document.getElementById('material-result').textContent = result.material;
+                    document.getElementById('total-co2e').textContent = result.co2e;
+                    
+                    document.getElementById('transport-emissions').textContent = 
+                        result.breakdown.transport;
+                    document.getElementById('packaging-emissions').textContent = 
+                        result.breakdown.packaging;
+                    document.getElementById('waste-emissions').textContent = 
+                        result.breakdown.waste;
+                    
+                    // Update loading capacity information
+                    if (result.loading_info) {
+                        const loadingTable = document.getElementById('loadingCapacityTable');
+                        loadingTable.innerHTML = '';
+                        
+                        Object.entries(result.loading_info).forEach(([vehicle, info]) => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${vehicle}</td>
+                                <td>${info.total_boxes}</td>
+                                <td>${info.rows}×${info.columns}×${info.layers} (W×L×H)</td>
+                                <td>
+                                    ${info.utilization_percentage.toFixed(1)}%
+                                    <div class="progress" style="height: 5px;">
+                                        <div class="progress-bar bg-success" 
+                                             style="width: ${info.utilization_percentage}%">
+                                        </div>
+                                    </div>
+                                </td>
+                            `;
+                            loadingTable.appendChild(row);
+                        });
+                        
+                        document.querySelector('.loading-capacity-info').classList.remove('d-none');
+                    }
+                    
+                    document.querySelector('.result-card').style.display = 'block';
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error calculating emissions. Please try again.');
+            } finally {
+                document.querySelector('.loading').style.display = 'none';
+            }
+        });
+
+        // Generate route options when origin and destination are set
+        function updateRouteOptions() {
+            const origin = document.getElementById('origin').value;
+            const destination = document.getElementById('destination').value;
+            
+            if (origin && destination) {
+                const [originLat, originLon] = origin.split(',');
+                const [destLat, destLon] = destination.split(',');
+                
+                // Call backend to generate route options
+                fetch('/generate-routes', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        origin: [parseFloat(originLat), parseFloat(originLon)],
+                        destination: [parseFloat(destLat), parseFloat(destLon)]
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayRouteOptions(data.routes);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error generating routes:', error);
+                });
+            }
+        }
+
+        // Add route generation trigger
+        document.getElementById('originCity').addEventListener('change', updateRouteOptions);
+        document.getElementById('destinationCity').addEventListener('change', updateRouteOptions);
     </script>
 </body>
 </html>
